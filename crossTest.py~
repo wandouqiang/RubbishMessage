@@ -1,0 +1,109 @@
+#!/usr/bin/python
+#coding:utf-8
+import time
+import sys
+import string
+import numpy as np
+
+
+from liblinearutil import *
+from sklearn import feature_extraction
+from sklearn.cross_validation import train_test_split 
+from sklearn.metrics import precision_recall_curve
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import HashingVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer   
+from sklearn.pipeline import make_pipeline
+from sklearn import metrics  
+
+def loadClassData(filename):
+    dataList  = []
+    for line in open(filename,'r').readlines():
+        dataList.append(int(line.strip()))
+    return dataList
+
+def loadTrainData(filename):
+    dataList  = []
+    for line in open(filename,'r').readlines():
+        dataList.append(line.strip())
+    return dataList
+
+def libLinear(trainData,testData,trainLabel,testLabel):
+    hv = HashingVectorizer(n_features = 10000)
+    voctorizer = make_pipeline(hv,TfidfTransformer())
+    fea_train = voctorizer.fit_transform(trainData)
+    fea_test = voctorizer.transform(testData);  
+    print 'Size of fea_train:' + repr(fea_train.shape) 
+    print 'Size of fea_train:' + repr(fea_test.shape) 
+    print fea_train.nnz
+    print fea_test.nnz
+    
+    prob = problem(trainLabel,fea_train)
+    m = train(prob)
+    p_label, p_acc, p_val = predict(testLabel,fea_test, m)
+    print p_acc
+    totalScore(p_label,testData,testLabel)
+    fout = open('label_value.txt','w+')
+    for i in range(len(p_label)):
+        fout.write('%d\t%f\n' %(p_label[i],p_val[i]))
+    
+
+def totalScore(pred,x_test,y_test):
+    A = 0
+    C = 0
+    B = 0
+    D = 0
+    fout = open('errorMsg.txt','w+')
+    for i in range(len(pred)):
+        if y_test[i] == 0:
+            if pred[i] == 0:
+                A += 1
+            elif pred[i] == 1:
+               B += 1
+               fout.write('0-1\t%s\n' %x_test[i])
+        elif y_test[i] == 1:
+            if pred[i] == 0:
+                C += 1
+                fout.write('1-0\t%s\n' %x_test[i])
+            elif pred[i] == 1:
+                D +=1
+    fout.close() 
+    print  A,B,C,D, A+B+C+D
+    
+    rb_pr = 1.0*D/(B+D)
+    rb_re = 1.0*D/(C+D)
+    rt_pr = 1.0*A/(A+C)
+    rt_re = 1.0*A/(A+B)
+    
+    Frb = 0.65*rb_pr + 0.35*rb_re
+    Frt = 0.65*rt_pr + 0.35*rt_re
+    Ftotal = 0.7*Frb + 0.3*Frt
+    print Ftotal
+
+
+if __name__ == "__main__":
+    t1 = time.time()
+    trainCorpus = []
+    classLabel = []
+    
+    classLabel = loadClassData('classLabel.txt')
+    trainCorpus = loadTrainData('trainLeftWords.txt')
+
+    trainData, testData, trainLabel, testLabel = train_test_split(trainCorpus, classLabel, test_size = 0.2) 
+ 
+  
+    print '*************************\nLibLinear\n*************************'  
+   #create the Multinomial Naive Bayesian Classifier 
+    libLinear(trainData,testData,trainLabel,testLabel) 
+    t2 = time.time()
+    print t2 - t1,'s'
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
